@@ -43,18 +43,6 @@ from sensor_msgs.msg import LaserScan
 
 mean_distance = -1.0
 
-def getch():
-    """ Return the next character typed on the keyboard """
-    import sys, tty, termios
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    try:
-        tty.setraw(sys.stdin.fileno())
-        ch = sys.stdin.read(1)
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    return ch
-
 def scan_received(msg, pub):
     """ Processes data from the laser scanner, msg is of type sensor_msgs/LaserScan """
     global mean_distance
@@ -67,7 +55,7 @@ def scan_received(msg, pub):
     else:
         mean_distance = -1.0
 
-def teleop():
+def approach_wall():
     pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
     sub = rospy.Subscriber('scan', LaserScan, scan_received, pub)
     rospy.init_node('teleop', anonymous=True)
@@ -80,5 +68,5 @@ def teleop():
         
 if __name__ == '__main__':
     try:
-        teleop()
+        approach_wall()
     except rospy.ROSInterruptException: pass
