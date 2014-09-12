@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>beginner_tutorials</name>
+  <name>in_class_code_day_3</name>
   <version>0.0.0</version>
-  <description>The beginner_tutorials package</description>
+  <description>The code for day 3 of the class</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
