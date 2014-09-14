@@ -1,7 +1,7 @@
 #!/bin/bash
 
-COUNT=`expr $1 - 100`
-echo $COUNT
+IPSUFFIX=`echo  $1 | cut -d'.' -f 4`
+IPSUFFIX=`expr $IPSUFFIX - 100`
 
 echo "Starting up adhoc wireless"
 echo "Make sure to use sudo when executing"
@@ -14,6 +14,6 @@ iwconfig wlan0 mode ad-hoc
 iwconfig wlan0 channel 1
 iwconfig wlan0 key aaaaa11111
 iwconfig wlan0 essid RPi
-ifconfig wlan0 10.0.0.$COUNT netmask 255.255.255.0 up
+ifconfig wlan0 10.0.0.$IPSUFFIX netmask 255.255.255.0 up
 
-ping 10.0.0.$1
+ping $1
