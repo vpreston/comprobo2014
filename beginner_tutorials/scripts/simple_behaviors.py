@@ -15,9 +15,11 @@ from sensor_msgs.msg import LaserScan
 mean_distance = 0
 people_distance = 1
 people_angle = 0
-wall_distance = 1
-wall_angle = 0
-ideal_angle = 0
+behavior = ''
+lead_left_avg = 0
+lead_right_avg = 0
+trailing_left_avg = 0
+trailing_right_avg = 0
 
 def front_scan_recieved(msg):
     """Process data from laser scanner, msg is of type sensor_msgs/LaserScan"""
@@ -104,34 +106,34 @@ def people_follow():
 def wall_scan_received(msg_wall):
     """Process data from laser scanner, msg is of type sensor_msgs/LaserScan"""
     print "scan received"
-    left_ranges = {}
-    right_ranges = {}
-    global wall_distance
-    global wall_angle
-    global ideal_angle
-    for i in range(359):
-        if msg_wall.ranges[i] > 0 and msg_wall.ranges[i] < 3:
-            if i <= 90:
-                left_ranges[msg_wall.ranges[i]] = i
-            elif i>270 and i<=360:
-                right_ranges[msg_wall.ranges[i]] = i
-    if len(left_ranges) > len(right_ranges):
+    lead_left_distance = []
+    lead_right_distance = []
+    trailing_left_distance = []
+    trailing_right_distance = []
+    global behavior
+    global lead_left_avg
+    global lead_right_avg
+    global trailing_left_avg
+    global trailing_right_avg
+    for i in range(11):
+        if msg_wall.ranges[i+40] > 0 and msg_wall.ranges[i+40] < 2:
+            lead_left_distance.append(msg_wall.ranges[i+40])
+        if msg_wall.ranges[i+130] > 0 and msg_wall.ranges[i+130] < 2:
+            trailing_left_distance.append(msg_wall.ranges[i+130])
+        if msg_wall.ranges[i+310] > 0 and msg_wall.ranges[i+310] < 2:
+            lead_right_distance.append(msg_wall.ranges[i+310])
+        if msg_wall.ranges[i+220] > 0 and msg_wall.ranges[i+220] < 2:
+            trailing_right_distance.append(msg_wall.ranges[i+220])
+    if len(lead_left_distance)+len(trailing_left_distance) > len(trailing_right_distance)+len(lead_right_distance):
         print 'its left!'
-        wall_distance = sum(left_ranges.keys())/float(len(left_ranges))
-        n = max(left_ranges.keys())
-        k = min(left_ranges.keys())
-        bottom_angle = math.radians(left_ranges[n])
-        top_angle = math.radians(left_ranges[k])
-        wall_angle = math.asin(n/bottom_angle)
+        lead_left_avg = sum(lead_left_distance)/float(len(lead_left_distance)+0.1)
+        trailing_left_avg = sum(trailing_left_distance)/float(len(trailing_left_distance)+0.1)
+        behavior = 'left'
     else:
         print 'its right'
-        wall_distance = sum(right_ranges.keys())/float(len(right_ranges))
-        n = max(right_ranges.keys())
-        k = min(right_ranges.keys())
-        bottom_angle = math.radians(right_ranges[n])
-        top_angle = math.radians(right_ranges[k])
-        wall_angle = math.asin(n/math.sqrt(2*bottom_angle))       
-    ideal_angle = 45
+        lead_right_avg = sum(lead_right_distance)/float(len(lead_right_distance)+0.1)
+        trailing_right_avg = sum(trailing_right_distance)/float(len(trailing_right_distance)+0.1)
+        behavior = 'right'       
 
 def wall_follow():
     """The publisher for a Neato Controller"""
@@ -139,25 +141,39 @@ def wall_follow():
     sub_wall = rospy.Subscriber('scan', LaserScan, wall_scan_received)
     rospy.init_node('wall_follow', anonymous=True)
     r = rospy.Rate(10) # 10hz
-    global wall_distance
-    global wall_angle
-    global ideal_angle
-    wall_prop_turn = 0.0005*(wall_angle - ideal_angle)
-    wall_prop_dist = 0.2*(wall_distance - 1.0)
+    global behavior
+    global lead_left_avg
+    global lead_right_avg
+    global trailing_left_avg
+    global trailing_right_avg
     while not rospy.is_shutdown():
-        if wall_distance > 0.9 and wall_distance < 1.1:
-            if wall_angle < ideal_angle+5 or wall_angle > ideal_angle-5:
-                msg_wall = Twist(Vector3(1.0,0.0,0.0), Vector3(0.0,0.0,0.0))
+        if behavior == 'right':
+            right_prop_dist = 0.3*(lead_right_avg - trailing_right_avg)
+            if lead_right_avg < 1.0- 0.1 and lead_right_avg != 0:
+                msg_wall = Twist(Vector3(0.1,0.0,0.0), Vector3(0.0,0.0,0.1/(0.5*(lead_right_avg)))) 
+            elif lead_right_avg > 1.0 +0.1:
+                msg_wall = Twist(Vector3(0.1,0.0,0.0), Vector3(0.0,0.0,-0.1/(0.5*(lead_right_avg)))) 
             else:
-                msg_wall = Twist(Vector3(1.0,0.0,0.0), Vector3(0.0,0.0,wall_prop_turn))
+                if lead_right_avg - 0.1 < trailing_right_avg and lead_right_avg + 0.1 > trailing_right_avg:
+                    msg_wall = Twist(Vector3(0.1,0.0,0.0), Vector3(0.0,0.0,0.0))
+                else:
+                    msg_wall = Twist(Vector3(0.1,0.0,0.0), Vector3(0.0,0.0,right_prop_dist))
+        elif behavior == 'left':
+            left_prop_dist = 0.3*(lead_left_avg - trailing_left_avg)
+            if lead_left_avg < 1.0- 0.1 and lead_left_avg != 0:
+                print 'correcting'
+                msg_wall = Twist(Vector3(0.1,0.0,0.0), Vector3(0.0,0.0,-0.1/(0.5*(lead_left_avg))))
+            elif lead_left_avg > 1.0 +0.1:
+                print 'correcting'
+                msg_wall = Twist(Vector3(0.1,0.0,0.0), Vector3(0.0,0.0,0.1/(0.5*(lead_left_avg)))) 
+            else:
+                print 'maintaining'
+                if lead_left_avg - 0.1 < trailing_left_avg and lead_left_avg + 0.1 > trailing_left_avg:
+                    msg_wall = Twist(Vector3(0.1,0.0,0.0), Vector3(0.0,0.0,0.0))
+                else:
+                    msg_wall = Twist(Vector3(0.1,0.0,0.0), Vector3(0.0,0.0,-left_prop_dist))                
         else:
-            if wall_angle < ideal_angle+5 or wall_angle > ideal_angle-5:
-                print 'Im here!'
-                msg_wall = Twist(Vector3(wall_prop_dist,0.0,0.0), Vector3(0.0,0.0,wall_prop_turn))
-            else:
-                msg_wall = Twist(Vector3(wall_prop_dist,0.0,0.0), Vector3(0.0,0.0,wall_prop_turn))
-        #msg = Twist(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 2.0))
-        #msg = Twist(angular=Vector3(z-2.0))
+            msg_wall = Twist(Vector3(0.0,0.0,0.0), Vector3(0.0,0.0,0.0)) 
         pub_wall.publish(msg_wall)
         r.sleep()
 
@@ -176,5 +192,5 @@ def get_keycmds():
         
 if __name__ == '__main__':
     try:
-        people_follow()
+        wall_follow()
     except rospy.ROSInterruptException: pass
