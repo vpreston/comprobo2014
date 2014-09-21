@@ -257,19 +257,14 @@ class ParticleFilter:
 		if xy_theta == None:
 			xy_theta = TransformHelpers.convert_pose_to_xy_and_theta(self.odom_pose.pose)
 		self.particle_cloud = []
-		for i in range(self.n_particles):
-			self.particle_cloud.append(Particle(x=xy_theta[0]+gauss(0,.25),y=xy_theta[1]+gauss(0,.25),theta=xy_theta[2]+gauss(0,.25)))
+		# TODO create particles
+
 		self.normalize_particles()
 		self.update_robot_pose()
 
-	""" Level 1 """
 	def normalize_particles(self):
 		""" Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
-		z = 0.0
-		for p in self.particle_cloud:
-			z += p.w
-		for i in range(len(self.particle_cloud)):
-			self.particle_cloud[i].w /= z
+		# TODO: implement this
 
 	def publish_particles(self, msg):
 		particles_conv = []
