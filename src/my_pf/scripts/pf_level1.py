@@ -128,7 +128,7 @@ class OccupancyField:
 		for i in range(self.map.info.width):
 			for j in range(self.map.info.height):
 				ind = i + j*self.map.info.width
-				self.closest_occ[ind] = distances[curr]*self.map.info.resolution
+				self.closest_occ[ind] = distances[curr][0]*self.map.info.resolution
 				curr += 1
 
 	def get_closest_obstacle_distance(self,x,y):
@@ -209,7 +209,7 @@ class ParticleFilter:
 		# request the map from the map server, the map should be of type nav_msgs/OccupancyGrid
 		# TODO: fill in the appropriate service call here.  The resultant map should be assigned be passed
 		#		into the init method for OccupancyField
-		
+
 		# for now we have commented out the occupancy field initialization until you can successfully fetch the map
 		#self.occupancy_field = OccupancyField(map)
 		self.initialized = True
@@ -308,6 +308,7 @@ class ParticleFilter:
 		if xy_theta == None:
 			xy_theta = TransformHelpers.convert_pose_to_xy_and_theta(self.odom_pose.pose)
 		self.particle_cloud = []
+		self.particle_cloud.append(Particle(0,0,0))
 		# TODO create particles
 
 		self.normalize_particles()
