@@ -4,7 +4,8 @@ import numpy as np
 
 
 class KeyPointMatcherDemo:
-
+	""" KeyPointMatcherDemo shows the basics of interest point detection,
+	    descriptor extraction, and descriptor matching in OpenCV """
 	def __init__(self, im1_file, im2_file, descriptor_name):
 		self.im1_file = im1_file
 		self.im2_file = im2_file
@@ -60,20 +61,19 @@ def set_corner_threshold(thresh):
 	""" Sets the threshold to consider an interest point a corner.  The higher the value
 		the more the point must look like a corner to be considered """
 	global matcher
-	matcher.corner_threshold = thresh/100.0
-	#matcher.compute_matches()
+	matcher.corner_threshold = thresh/1000.0
 
 def set_ratio_threshold(ratio):
 	""" Sets the ratio of the nearest to the second nearest neighbor to consider the match a good one """
 	global matcher
 	matcher.ratio_threshold = ratio/100.0
-	#matcher.compute_matches()
 
 def mouse_event(event,x,y,flag,im):
 	if event == cv2.EVENT_FLAG_LBUTTON:
 		matcher.compute_matches()
 
 if __name__ == '__main__':
+	# descriptor can be: SIFT, SURF, BRIEF, BRISK, ORB, FREAK
 	matcher = KeyPointMatcherDemo('frame0000.jpg','frame0001.jpg','SIFT')
 
 	cv2.namedWindow('UI')
