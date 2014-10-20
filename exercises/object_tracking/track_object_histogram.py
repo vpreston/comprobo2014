@@ -2,31 +2,18 @@ import cv2
 import pickle
 import numpy as np
 
-
 class ObjectTracker:
 	SELECTING_QUERY_IMG = 0
 	SELECTING_ROI_PT_1 = 1
 	SELECTING_ROI_PT_2 = 2
 
 	""" Object Tracker shows the basics of tracking an object based on keypoints """
-	def __init__(self, descriptor_name):
-		self.detector = cv2.FeatureDetector_create(descriptor_name)
-		self.extractor = cv2.DescriptorExtractor_create(descriptor_name)
-		self.matcher = cv2.BFMatcher()
+	def __init__(self):
 		self.query_img = None
 		self.query_roi = None
 		self.last_detection = None
 
-		self.corner_threshold = 0.0
-		self.ratio_threshold = 1.0
-
 		self.state = ObjectTracker.SELECTING_QUERY_IMG
-
-	def set_ratio_threshold(self,thresh):
-		self.ratio_threshold = thresh
-
-	def set_corner_threshold(self,thresh):
-		self.corner_threshold = thresh
 
 	def get_query_histogram(self):
 		# set up the ROI for tracking
@@ -54,15 +41,6 @@ class ObjectTracker:
 		self.last_detection = [intermediate_roi[0],intermediate_roi[1],intermediate_roi[0]+intermediate_roi[2],intermediate_roi[1]+intermediate_roi[3]]
 		cv2.imshow("track_win",track_im_visualize)
 
-def set_corner_threshold_callback(thresh):
-	""" Sets the threshold to consider an interest point a corner.  The higher the value
-		the more the point must look like a corner to be considered """
-	tracker.set_corner_threshold(thresh/1000.0)
-
-def set_ratio_threshold_callback(ratio):
-	""" Sets the ratio of the nearest to the second nearest neighbor to consider the match a good one """
-	tracker.set_ratio_threshold(ratio/100.0)
-
 def mouse_event(event,x,y,flag,im):
 	if event == cv2.EVENT_FLAG_LBUTTON:
 		if tracker.state == tracker.SELECTING_QUERY_IMG:
@@ -82,15 +60,8 @@ def mouse_event(event,x,y,flag,im):
 			tracker.state = tracker.SELECTING_QUERY_IMG
 
 if __name__ == '__main__':
-	# descriptor can be: SIFT, SURF, BRIEF, BRISK, ORB, FREAK
-	tracker = ObjectTracker('SIFT')
-
+	tracker = ObjectTracker()
 	cap = cv2.VideoCapture(0)
-
-	cv2.namedWindow('UI')
-	cv2.createTrackbar('Corner Threshold', 'UI', 0, 100, set_corner_threshold_callback)
-	cv2.createTrackbar('Ratio Threshold', 'UI', 100, 100, set_ratio_threshold_callback)
-
 	cv2.namedWindow("MYWIN")
 	cv2.setMouseCallback("MYWIN",mouse_event)
 
