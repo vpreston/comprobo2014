@@ -1,0 +1,120 @@
+import cv2
+import pickle
+import numpy as np
+
+
+class ObjectTracker:
+	SELECTING_QUERY_IMG = 0
+	SELECTING_ROI_PT_1 = 1
+	SELECTING_ROI_PT_2 = 2
+
+	""" Object Tracker shows the basics of tracking an object based on keypoints """
+	def __init__(self, descriptor_name):
+		self.detector = cv2.FeatureDetector_create(descriptor_name)
+		self.extractor = cv2.DescriptorExtractor_create(descriptor_name)
+		self.matcher = cv2.BFMatcher()
+		self.query_img = None
+		self.query_roi = None
+		self.last_detection = None
+
+		self.corner_threshold = 0.0
+		self.ratio_threshold = 1.0
+
+		self.state = ObjectTracker.SELECTING_QUERY_IMG
+
+	def set_ratio_threshold(self,thresh):
+		self.ratio_threshold = thresh
+
+	def set_corner_threshold(self,thresh):
+		self.corner_threshold = thresh
+
+	def get_query_histogram(self):
+		# set up the ROI for tracking
+		roi = self.query_img[self.query_roi[1]:self.query_roi[3],self.query_roi[0]:self.query_roi[2],:]
+		hsv_roi =  cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+		mask = cv2.inRange(hsv_roi, np.array((0., 60.,32.)), np.array((180.,255.,255.)))
+		self.query_hist = cv2.calcHist([hsv_roi],[0],mask,[180],[0,180])
+		cv2.normalize(self.query_hist,self.query_hist,0,255,cv2.NORM_MINMAX)
+
+	def track(self,im):
+		im_hsv = cv2.cvtColor(im,cv2.COLOR_BGR2HSV)
+		track_im = cv2.calcBackProject([im_hsv],[0],self.query_hist,[0,180],1)
+
+		track_im_visualize = track_im.copy()
+		# convert to (x,y,w,h)
+		track_roi = (self.last_detection[0],self.last_detection[1],self.last_detection[2]-self.last_detection[0],self.last_detection[3]-self.last_detection[1])
+
+		# Setup the termination criteria, either 10 iteration or move by atleast 1 pt
+		# this is done to plot intermediate results of mean shift
+		for max_iter in range(1,10):
+			term_crit = ( cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, max_iter, 1 )
+			(ret, intermediate_roi) = cv2.meanShift(track_im,track_roi,term_crit)
+			cv2.rectangle(track_im_visualize,(intermediate_roi[0],intermediate_roi[1]),(intermediate_roi[0]+intermediate_roi[2],intermediate_roi[1]+intermediate_roi[3]),max_iter/10.0,2)
+
+		self.last_detection = [intermediate_roi[0],intermediate_roi[1],intermediate_roi[0]+intermediate_roi[2],intermediate_roi[1]+intermediate_roi[3]]
+		cv2.imshow("track_win",track_im_visualize)
+
+def set_corner_threshold_callback(thresh):
+	""" Sets the threshold to consider an interest point a corner.  The higher the value
+		the more the point must look like a corner to be considered """
+	tracker.set_corner_threshold(thresh/1000.0)
+
+def set_ratio_threshold_callback(ratio):
+	""" Sets the ratio of the nearest to the second nearest neighbor to consider the match a good one """
+	tracker.set_ratio_threshold(ratio/100.0)
+
+def mouse_event(event,x,y,flag,im):
+	if event == cv2.EVENT_FLAG_LBUTTON:
+		if tracker.state == tracker.SELECTING_QUERY_IMG:
+			tracker.query_img_visualize = frame.copy()
+			tracker.query_img = frame
+			tracker.query_roi = None
+			tracker.state = tracker.SELECTING_ROI_PT_1
+		elif tracker.state == tracker.SELECTING_ROI_PT_1:
+			tracker.query_roi = [x,y,-1,-1]
+			cv2.circle(tracker.query_img_visualize,(x,y),5,(255,0,0),5)
+			tracker.state = tracker.SELECTING_ROI_PT_2
+		else:
+			tracker.query_roi[2:] = [x,y]
+			tracker.last_detection = tracker.query_roi
+			cv2.circle(tracker.query_img_visualize,(x,y),5,(255,0,0),5)
+			tracker.get_query_histogram()
+			tracker.state = tracker.SELECTING_QUERY_IMG
+
+if __name__ == '__main__':
+	# descriptor can be: SIFT, SURF, BRIEF, BRISK, ORB, FREAK
+	tracker = ObjectTracker('SIFT')
+
+	cap = cv2.VideoCapture(0)
+
+	cv2.namedWindow('UI')
+	cv2.createTrackbar('Corner Threshold', 'UI', 0, 100, set_corner_threshold_callback)
+	cv2.createTrackbar('Ratio Threshold', 'UI', 100, 100, set_ratio_threshold_callback)
+
+	cv2.namedWindow("MYWIN")
+	cv2.setMouseCallback("MYWIN",mouse_event)
+
+	while True:
+		ret, frame = cap.read()
+		frame = np.array(cv2.resize(frame,(frame.shape[1]/2,frame.shape[0]/2)))
+
+		if tracker.state == tracker.SELECTING_QUERY_IMG:
+			if tracker.query_roi != None:
+				tracker.track(frame)
+
+				# add the query image to the side
+				combined_img = np.zeros((frame.shape[0],frame.shape[1]+(tracker.query_roi[2]-tracker.query_roi[0]),frame.shape[2]),dtype=frame.dtype)
+				combined_img[:,0:frame.shape[1],:] = frame
+				combined_img[0:(tracker.query_roi[3]-tracker.query_roi[1]),frame.shape[1]:,:] = (
+						tracker.query_img[tracker.query_roi[1]:tracker.query_roi[3],
+										  tracker.query_roi[0]:tracker.query_roi[2],:])
+
+				cv2.rectangle(combined_img,(tracker.last_detection[0],tracker.last_detection[1]),(tracker.last_detection[2],tracker.last_detection[3]),(0,0,255),2)
+
+				cv2.imshow("MYWIN",combined_img)
+			else:
+				cv2.imshow("MYWIN",frame)
+		else:
+			cv2.imshow("MYWIN",tracker.query_img_visualize)
+		cv2.waitKey(50)
+	cv2.destroyAllWindows()
