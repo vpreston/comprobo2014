@@ -19,13 +19,13 @@ class ObjectTracker:
 		# set up the ROI for tracking
 		roi = self.query_img[self.query_roi[1]:self.query_roi[3],self.query_roi[0]:self.query_roi[2],:]
 		hsv_roi =  cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-		mask = cv2.inRange(hsv_roi, np.array((0., 60.,32.)), np.array((180.,255.,255.)))
-		self.query_hist = cv2.calcHist([hsv_roi],[0],mask,[180],[0,180])
+		# play with the number of histogram bins by changing histSize
+		self.query_hist = cv2.calcHist([hsv_roi],[0],mask=None,histSize=[256],ranges=[0,255])
 		cv2.normalize(self.query_hist,self.query_hist,0,255,cv2.NORM_MINMAX)
 
 	def track(self,im):
 		im_hsv = cv2.cvtColor(im,cv2.COLOR_BGR2HSV)
-		track_im = cv2.calcBackProject([im_hsv],[0],self.query_hist,[0,180],1)
+		track_im = cv2.calcBackProject([im_hsv],[0],self.query_hist,[0,255],1)
 
 		track_im_visualize = track_im.copy()
 		# convert to (x,y,w,h)
