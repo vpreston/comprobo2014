@@ -73,8 +73,8 @@ def mouse_event(event,x,y,flag,im):
 		matcher.compute_matches()
 
 if __name__ == '__main__':
-	# descriptor can be: SIFT, SURF, BRIEF, BRISK, ORB, FREAK
-	matcher = KeyPointMatcherDemo('frame0000.jpg','frame0001.jpg','SIFT')
+	# descriptor can be: SIFT, SURF, BRIEF (DOES NOT RUN), BRISK, ORB, FREAK (DOES NOT RUN)
+	matcher = KeyPointMatcherDemo('frame0000.jpg','frame0001.jpg','ORB')
 
 	cv2.namedWindow('UI')
 	cv2.createTrackbar('Corner Threshold', 'UI', 0, 100, set_corner_threshold)
